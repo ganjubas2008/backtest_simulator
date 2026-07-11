@@ -1,8 +1,8 @@
-# ETH Perpetual Market-Making Backtest
+# ETH Perpetual Strategy Backtester
 
-This project evaluates a deliberately small market-making strategy on ETH perpetual-futures data from 2026-03-19 through 2026-03-21. It is a research backtest, not a production trading system.
+This project evaluates two deliberately simple strategies on ETH perpetual-futures data from 2026-03-19 through 2026-03-21: a market maker and a random coin-flip benchmark. It is a research backtest, not a production trading system.
 
-The honest result is negative: the baseline loses money even with zero fees and zero artificial latency. The smaller-order experiment loses less, but it also trades roughly one tenth of the volume. Execution uncertainty—especially orders crossed by a later book snapshot—is the largest unresolved modeling risk.
+The market maker loses money even with zero fees and zero artificial latency. Execution uncertainty—especially orders crossed by a later book snapshot—is the largest unresolved modeling risk.
 
 ## Quick start
 
@@ -17,8 +17,8 @@ The menu can also run all profiles, display previously saved results, run the te
 
 ```bash
 ./run.sh --list
-./run.sh --run baseline
-./run.sh --results order_size_0_01
+./run.sh --run market_maker
+./run.sh --run coin_flip
 ./run.sh --run-all
 ./run.sh --test
 ```
@@ -27,14 +27,14 @@ The raw dataset and generated outputs are intentionally excluded from Git. Put t
 
 ## Saved results
 
-| Configuration | PnL | Turnover | Max drawdown | Max inventory |
+| Strategy | PnL | Turnover | Max drawdown | Max inventory |
 |---|---:|---:|---:|---:|
-| `config/baseline.yaml` (0.10 ETH) | -91.41 USD | 370,460 USD | -92.56 USD | 1.215 ETH |
-| `config/order_size_0_01.yaml` (0.01 ETH) | -5.22 USD | 37,377 USD | -15.02 USD | 0.280 ETH |
+| Market maker | -91.41 USD | 370,460 USD | -92.56 USD | 1.215 ETH |
+| Coin flip (seed 42) | -93.61 USD | 358,727 USD | -124.04 USD | 2.000 ETH |
 
-The baseline records 1,806 maker fills, 38 taker fills, and 25,367 cancellations caused by an active order crossing a later historical book. Its final inventory is zero and no inventory-limit invariant is breached.
+The market maker records 1,806 maker fills, 38 taker fills, and 25,367 cancellations caused by an active order crossing a later historical book. Its final inventory is zero and no inventory-limit invariant is breached.
 
-## Strategy
+## Market-maker strategy
 
 At each 300 ms decision point, the strategy computes
 
@@ -51,6 +51,15 @@ ask    = center + (spread / 2 + quote_distance)
 - On the third day, the limit and inventory target decrease linearly to zero.
 - Funding changes the preferred inventory before the final day; cash funding is accounted for separately.
 
+## Coin-flip strategy
+
+At every decision, a fair coin chooses one resting maker order:
+
+- heads: buy at the current best bid;
+- tails: sell at the current best ask.
+
+When run in a terminal, the launcher asks for an integer seed. Press Enter for a fresh random seed. The selected seed is printed and saved in `manifest.json`, so a seeded run can be repeated exactly. This strategy is a random benchmark, not a trading signal.
+
 ## Event and fill model
 
 Events with an identical timestamp are processed as one batch:
@@ -66,7 +75,7 @@ Events with an identical timestamp are processed as one batch:
 
 A new order cannot fill from an event at its creation timestamp. Maker fills use aggressive trade direction and displayed volume ahead at the quoted price. A trade strictly through the price fills the remaining order. Unknown depth outside the retained 20 levels is treated as an unknown queue, not an empty queue.
 
-The strict baseline cancels crossed resting orders because a snapshot alone does not prove a fill. This is conservative about claiming fills but optimistic about adverse selection, so the crossed-order count must be considered alongside PnL.
+The strict simulator cancels crossed resting orders because a snapshot alone does not prove a fill. This is conservative about claiming fills but optimistic about adverse selection, so the crossed-order count must be considered alongside PnL.
 
 Portfolio accounting enforces
 
@@ -105,11 +114,11 @@ python3.12 -m venv .venv
 Run a full backtest from the project root:
 
 ```bash
-./run.sh --run baseline
-./run.sh --run order_size_0_01
+./run.sh --run market_maker
+./run.sh --run coin_flip
 ```
 
-`run_backtest.py --config config/PROFILE.yaml` remains available as the lower-level Python interface.
+`run_backtest.py --config config/PROFILE.yaml` remains available as the lower-level Python interface. Use `--seed 42` with `config/coin_flip.yaml` for a non-interactive seeded run.
 
 Each run writes these generated files under its configured output directory:
 
@@ -130,9 +139,9 @@ Jupyter binds only to `127.0.0.1:8888` and is not exposed to the network.
 
 ## Known limitations
 
-- The baseline assumes zero fees and zero placement/cancellation latency.
+- The strategies assume zero fees and zero placement/cancellation latency.
 - Only three days of one market are available.
 - Queue position is inferred from snapshots and trade tape, not exchange order IDs.
-- Snapshot-crossed orders have no provable outcome; the strict baseline cancels them.
+- Snapshot-crossed orders have no provable outcome; the strict simulator cancels them.
 - Pressure and fee sensitivity experiments remain to be run and saved.
 - This is a single-process historical simulator with no live exchange connectivity.

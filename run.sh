@@ -24,8 +24,8 @@ profile_name() {
 
 profile_title() {
   case "$(profile_name "$1")" in
-    baseline) echo "Baseline market maker (0.10 ETH orders)" ;;
-    order_size_0_01) echo "Small-order market maker (0.01 ETH orders)" ;;
+    market_maker) echo "Market maker" ;;
+    coin_flip) echo "Coin flip" ;;
     *) profile_name "$1" ;;
   esac
 }
@@ -384,7 +384,8 @@ PY
 
 run_profile() {
   local config="$1"
-  local data_dir
+  local data_dir seed
+  local -a seed_args=()
   ensure_runtime
   data_dir="$(data_directory "$config")"
   [[ -d "$data_dir" ]] ||
@@ -394,7 +395,14 @@ run_profile() {
   echo "Running: $(profile_title "$config")"
   echo "Config:  ${config#"$PROJECT_ROOT"/}"
   echo
-  "$PYTHON" "$PROJECT_ROOT/run_backtest.py" --config "$config"
+  if [[ "$(profile_name "$config")" == "coin_flip" && -t 0 ]]; then
+    read -r -p "Seed (press Enter for random): " seed
+    [[ -z "$seed" || "$seed" =~ ^-?[0-9]+$ ]] ||
+      die "The seed must be an integer."
+    [[ -z "$seed" ]] || seed_args=(--seed "$seed")
+  fi
+  "$PYTHON" "$PROJECT_ROOT/run_backtest.py" \
+    --config "$config" "${seed_args[@]}"
   show_results "$config"
 }
 
@@ -459,8 +467,8 @@ Commands:
   -h, --help                Show this help
 
 Examples:
-  ./run.sh --run baseline
-  ./run.sh --results order_size_0_01
+  ./run.sh --run market_maker
+  ./run.sh --run coin_flip
 EOF
 }
 
@@ -468,8 +476,8 @@ interactive_menu() {
   local choice
   while true; do
     echo
-    echo "ETH Perpetual Market-Making Backtest"
-    echo "===================================="
+    echo "ETH Perpetual Strategy Backtester"
+    echo "================================="
     echo "  1) Run one strategy profile"
     echo "  2) Run all strategy profiles"
     echo "  3) View saved results"

@@ -12,7 +12,7 @@ from market_maker.data import MarketStateBuilder
 from market_maker.models import BookSnapshot, Fill, Liquidity, Quote, QuotePlan, Side
 from market_maker.portfolio import Portfolio
 from market_maker.risk import InventoryRiskManager
-from market_maker.strategy import SimpleMarketMaker
+from market_maker.strategy import CoinFlip, MarketMaker, create_strategy
 
 
 def book(timestamp: str = "2026-03-19 12:00:00") -> BookSnapshot:
@@ -104,7 +104,7 @@ class PortfolioTests(unittest.TestCase):
 class ConfigTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.config = load_config("config/baseline.yaml")
+        cls.config = load_config("config/market_maker.yaml")
 
     def test_duplicate_dates_are_rejected(self) -> None:
         duplicate = replace(
@@ -121,7 +121,7 @@ class ConfigTests(unittest.TestCase):
 class RiskTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.config = load_config("config/baseline.yaml")
+        cls.config = load_config("config/market_maker.yaml")
         cls.risk = InventoryRiskManager(cls.config)
 
     def test_final_day_limit_decreases_linearly(self) -> None:
@@ -155,7 +155,7 @@ class RiskTests(unittest.TestCase):
         self.assertAlmostEqual(decision.approved_quotes.ask.size, 0.1)
 
     def test_final_day_target_reduces_linearly(self) -> None:
-        strategy = SimpleMarketMaker(self.config)
+        strategy = MarketMaker(self.config)
         start = strategy.inventory_target(datetime(2026, 3, 21, 0, 0), 0.0, 0.4)
         noon = strategy.inventory_target(datetime(2026, 3, 21, 12, 0), 0.0, 0.4)
         end = strategy.inventory_target(datetime(2026, 3, 22, 0, 0), 0.0, 0.4)
@@ -164,7 +164,7 @@ class RiskTests(unittest.TestCase):
         self.assertAlmostEqual(end, 0.0)
 
     def test_final_day_quotes_only_toward_target(self) -> None:
-        strategy = SimpleMarketMaker(self.config)
+        strategy = MarketMaker(self.config)
         market = MarketStateBuilder().apply(book("2026-03-21 12:00:00"))
         self.assertIsNotNone(market)
         portfolio = Portfolio()
@@ -183,6 +183,38 @@ class RiskTests(unittest.TestCase):
         plan = strategy.quote(market, state, inventory_limit=1.0, inventory_target=0.2)
         self.assertIsNone(plan.bid)
         self.assertIsNotNone(plan.ask)
+
+
+class StrategyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.config = load_config("config/coin_flip.yaml")
+        cls.market = MarketStateBuilder().apply(book())
+        cls.portfolio = Portfolio().mark(pd.Timestamp(book().timestamp), 100.0)
+
+    def test_config_selects_named_strategy(self) -> None:
+        market_maker = create_strategy(load_config("config/market_maker.yaml"))
+        coin_flip = create_strategy(self.config, seed=7)
+        self.assertIsInstance(market_maker, MarketMaker)
+        self.assertIsInstance(coin_flip, CoinFlip)
+
+    def test_coin_flip_seed_is_repeatable(self) -> None:
+        first = CoinFlip(self.config, seed=7)
+        second = CoinFlip(self.config, seed=7)
+        first_plans = [
+            first.quote(self.market, self.portfolio, 2.0, 0.0) for _ in range(20)
+        ]
+        second_plans = [
+            second.quote(self.market, self.portfolio, 2.0, 0.0) for _ in range(20)
+        ]
+        self.assertEqual(first_plans, second_plans)
+        self.assertTrue(
+            all((plan.bid is None) != (plan.ask is None) for plan in first_plans)
+        )
+
+    def test_coin_flip_creates_random_seed(self) -> None:
+        strategy = CoinFlip(self.config)
+        self.assertIsInstance(strategy.seed, int)
 
 
 if __name__ == "__main__":

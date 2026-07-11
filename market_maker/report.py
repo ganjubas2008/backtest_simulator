@@ -278,6 +278,7 @@ def _manifest(result: BacktestResult) -> dict[str, object]:
             for name in ("numpy", "pandas", "pyarrow", "matplotlib", "PyYAML")
         },
         "config": asdict(config),
+        "strategy_seed": result.strategy_seed,
         "inputs": {str(path): describe(path) for path in config.input_paths},
         "source": {str(path.relative_to(root)): describe(path) for path in sources},
     }

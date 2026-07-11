@@ -134,5 +134,6 @@ class BacktestResult:
     monitoring: pd.DataFrame
     fills: tuple[Fill, ...]
     order_counts: dict[str, int]
+    strategy_seed: int | None = None
     metrics: dict[str, float] | None = None
     daily_metrics: pd.DataFrame | None = None
