@@ -14,6 +14,7 @@ market:
   funding_interval_hours: 8
 
 strategy:
+  name: market_maker
   decision_interval_ms: 300
   order_size_eth: 0.1
   quote_distance_ticks: 1
@@ -36,4 +37,4 @@ simulation:
 
 reporting:
   snapshot_interval_ms: 1000
-  output_directory: outputs/baseline
+  output_directory: outputs/market_maker

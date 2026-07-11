@@ -62,7 +62,7 @@ class EmptyStrategy:
 class ExecutionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.config = load_config("config/baseline.yaml")
+        cls.config = load_config("config/market_maker.yaml")
 
     def test_new_order_does_not_fill_on_creation_event(self) -> None:
         market = MarketStateBuilder().apply(book("2026-03-19 12:00:00"))
@@ -214,7 +214,7 @@ class ExecutionTests(unittest.TestCase):
 class BacktestTests(unittest.TestCase):
     def test_small_end_to_end_run_finishes_flat(self) -> None:
         config = replace(
-            load_config("config/baseline.yaml"),
+            load_config("config/market_maker.yaml"),
             decision_interval_ms=100,
             snapshot_interval_ms=100,
         )
@@ -246,7 +246,7 @@ class BacktestTests(unittest.TestCase):
 
     def test_stale_order_cannot_fill(self) -> None:
         config = replace(
-            load_config("config/baseline.yaml"),
+            load_config("config/market_maker.yaml"),
             decision_interval_ms=100,
             snapshot_interval_ms=100,
             stale_book_ms=1_000,
@@ -262,7 +262,7 @@ class BacktestTests(unittest.TestCase):
 
     def test_same_timestamp_is_processed_before_requoting(self) -> None:
         config = replace(
-            load_config("config/baseline.yaml"),
+            load_config("config/market_maker.yaml"),
             decision_interval_ms=300,
             snapshot_interval_ms=100,
             max_pressure_shift_ticks=0.0,
@@ -280,14 +280,14 @@ class BacktestTests(unittest.TestCase):
         self.assertEqual(len(maker), 1)
 
     def test_backwards_time_is_rejected(self) -> None:
-        config = load_config("config/baseline.yaml")
+        config = load_config("config/market_maker.yaml")
         events = [book("2026-03-19 12:00:01"), book("2026-03-19 12:00:00")]
         with self.assertRaises(ValueError):
             run_backtest(config, events)
 
     def test_forced_taker_uses_current_book(self) -> None:
         config = replace(
-            load_config("config/baseline.yaml"),
+            load_config("config/market_maker.yaml"),
             decision_interval_ms=100,
             snapshot_interval_ms=100,
         )

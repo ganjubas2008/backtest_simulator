@@ -22,6 +22,7 @@ class BacktestConfig:
     lot_size: float
     stale_book_ms: int
     funding_interval_hours: int
+    strategy_name: str
     decision_interval_ms: int
     order_size_eth: float
     quote_distance_ticks: int
@@ -81,13 +82,16 @@ def load_config(path: str | Path) -> BacktestConfig:
         lot_size=float(market["lot_size"]),
         stale_book_ms=int(market["stale_book_ms"]),
         funding_interval_hours=int(market["funding_interval_hours"]),
+        strategy_name=str(strategy["name"]),
         decision_interval_ms=int(strategy["decision_interval_ms"]),
         order_size_eth=float(strategy["order_size_eth"]),
-        quote_distance_ticks=int(strategy["quote_distance_ticks"]),
-        max_pressure_shift_ticks=float(strategy["max_pressure_shift_ticks"]),
-        max_inventory_shift_ticks=float(strategy["max_inventory_shift_ticks"]),
-        funding_target_per_bp_eth=float(strategy["funding_target_per_bp_eth"]),
-        max_funding_target_eth=float(strategy["max_funding_target_eth"]),
+        quote_distance_ticks=int(strategy.get("quote_distance_ticks", 0)),
+        max_pressure_shift_ticks=float(strategy.get("max_pressure_shift_ticks", 0)),
+        max_inventory_shift_ticks=float(strategy.get("max_inventory_shift_ticks", 0)),
+        funding_target_per_bp_eth=float(
+            strategy.get("funding_target_per_bp_eth", 0)
+        ),
+        max_funding_target_eth=float(strategy.get("max_funding_target_eth", 0)),
         inventory_limit_eth=float(risk["inventory_limit_eth"]),
         final_inventory_eth=float(risk["final_inventory_eth"]),
         placement_latency_ms=int(simulation["placement_latency_ms"]),
@@ -167,6 +171,8 @@ def _validate_alignment(config: BacktestConfig) -> None:
 
 
 def _validate_modes(config: BacktestConfig) -> None:
+    if config.strategy_name not in {"market_maker", "coin_flip"}:
+        raise ValueError("strategy name must be market_maker or coin_flip")
     if config.queue_model != "visible_volume_ahead":
         raise ValueError("only visible_volume_ahead is supported in stage 1")
     if config.book_cross_policy not in {"cancel", "fill"}:

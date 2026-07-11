@@ -14,13 +14,9 @@ market:
   funding_interval_hours: 8
 
 strategy:
+  name: coin_flip
   decision_interval_ms: 300
-  order_size_eth: 0.01
-  quote_distance_ticks: 1
-  max_pressure_shift_ticks: 1
-  max_inventory_shift_ticks: 3
-  funding_target_per_bp_eth: 0.1
-  max_funding_target_eth: 0.25
+  order_size_eth: 0.1
 
 risk:
   inventory_limit_eth: 2.0
@@ -36,4 +32,4 @@ simulation:
 
 reporting:
   snapshot_interval_ms: 1000
-  output_directory: outputs/order_size_0_01
+  output_directory: outputs/coin_flip

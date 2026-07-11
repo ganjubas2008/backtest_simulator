@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import random
 from datetime import datetime, time, timedelta
 from typing import Protocol
 
@@ -35,7 +36,7 @@ class Strategy(Protocol):
     ) -> QuotePlan: ...
 
 
-class SimpleMarketMaker:
+class MarketMaker:
     def __init__(self, config: BacktestConfig) -> None:
         self.config = config
 
@@ -87,3 +88,43 @@ class SimpleMarketMaker:
             elif portfolio.inventory < inventory_target - tolerance:
                 ask = None
         return QuotePlan(bid=bid, ask=ask)
+
+
+class CoinFlip:
+    def __init__(self, config: BacktestConfig, seed: int | None = None) -> None:
+        self.config = config
+        self.seed = seed if seed is not None else random.SystemRandom().getrandbits(64)
+        self._random = random.Random(self.seed)
+
+    def inventory_target(
+        self,
+        _timestamp: datetime,
+        _funding_rate: float,
+        _final_day_start_inventory: float,
+    ) -> float:
+        return 0.0
+
+    def quote(
+        self,
+        market: MarketState,
+        _portfolio: PortfolioSnapshot,
+        inventory_limit: float,
+        _inventory_target: float,
+    ) -> QuotePlan:
+        if inventory_limit < self.config.lot_size:
+            return QuotePlan.empty()
+
+        size = self.config.order_size_eth
+        if self._random.getrandbits(1) == 0:
+            return QuotePlan(Quote(Side.BUY, market.best_bid, size), None)
+        return QuotePlan(None, Quote(Side.SELL, market.best_ask, size))
+
+
+def create_strategy(config: BacktestConfig, seed: int | None = None) -> Strategy:
+    if config.strategy_name == "market_maker":
+        if seed is not None:
+            raise ValueError("a random seed is only valid for coin_flip")
+        return MarketMaker(config)
+    if config.strategy_name == "coin_flip":
+        return CoinFlip(config, seed)
+    raise ValueError(f"unknown strategy: {config.strategy_name}")

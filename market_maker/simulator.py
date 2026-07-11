@@ -29,7 +29,7 @@ from .models import (
 from .portfolio import Portfolio
 from .report import MonitoringRecorder, finalize_result
 from .risk import InventoryRiskManager
-from .strategy import SimpleMarketMaker, Strategy
+from .strategy import Strategy, create_strategy
 
 MAX_ACTIVE_ORDERS = 2
 
@@ -335,6 +335,7 @@ class BacktestEngine:
             monitoring=self.recorder.to_frame(),
             fills=tuple(self.fills),
             order_counts=dict(self.execution.counts),
+            strategy_seed=getattr(self.strategy, "seed", None),
         )
         return finalize_result(result)
 
@@ -564,5 +565,5 @@ def run_backtest(
     progress: Callable[[int, pd.Timestamp], None] | None = None,
 ) -> BacktestResult:
     return BacktestEngine(
-        config, strategy or SimpleMarketMaker(config), progress=progress
+        config, strategy or create_strategy(config), progress=progress
     ).run(events)
