@@ -35,7 +35,7 @@ $$
 Let $b_t$, $a_t$, $m_t=(b_t+a_t)/2$, and $s_t=a_t-b_t$ be the best bid, best ask, mid-price, and spread. With tick size $\tau=0.10$ USD, inventory $q_t$, target $q_t^*$, and current limit $L_t$, the strategy computes
 
 $$
-z_t = \operatorname{clip}\!\left(\frac{q_t-q_t^*}{\max(L_t,0.1)},-1,1\right),
+z_t = \min\!\left(1,\max\!\left(-1,\frac{q_t-q_t^*}{\max(L_t,0.1)}\right)\right),
 \qquad
 c_t = m_t + I_t\tau - 3z_t\tau,
 $$
@@ -51,7 +51,7 @@ It posts at most one 0.1 ETH order per side. Pressure shifts the quote center by
 Before the final day, funding sets the preferred inventory:
 
 $$
-q_t^* = \operatorname{clip}\!\left(-\frac{f_t}{10^{-4}}\times0.1,-0.25,0.25\right) \text{ ETH}.
+q_t^* = \min\!\left(0.25,\max\!\left(-0.25,-\frac{f_t}{10^{-4}}\times0.1\right)\right) \text{ ETH}.
 $$
 
 On the final day, the target decays linearly from the inventory held at 00:00 to zero. The strategy also removes the bid when inventory is above target and removes the ask when it is below target, so quotes help liquidation rather than oppose it.
@@ -61,7 +61,7 @@ On the final day, the target decays linearly from the inventory held at 00:00 to
 At each 300 ms decision, a fair seeded coin selects exactly one resting maker quote:
 
 $$
-X_t\sim\operatorname{Bernoulli}(1/2),
+X_t\in\{0,1\},\quad P(X_t=0)=P(X_t=1)=\frac{1}{2},
 \qquad
 X_t=0:\ (p_t,size)=(b_t,0.1\text{ ETH}),
 \qquad
@@ -88,7 +88,7 @@ Funding cash flow is applied every eight hours as $\Delta C_t=-q_t m_t f_t$. Por
 
 $$
 \text{equity}=\text{cash}+q_t m_t
-=\text{realized P\&L}+\text{unrealized P\&L}+\text{funding P\&L}-\text{fees}.
+=\text{realized PnL}+\text{unrealized PnL}+\text{funding PnL}-\text{fees}.
 $$
 
 ## Jupyter notebook results
