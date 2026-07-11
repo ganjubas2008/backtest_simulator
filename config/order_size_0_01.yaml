@@ -1,0 +1,39 @@
+data:
+  directory: data/extracted/take-home-project/data
+  dates:
+    - 2026-03-19
+    - 2026-03-20
+    - 2026-03-21
+  pressure_levels: 5
+  execution_levels: 20
+
+market:
+  tick_size: 0.1
+  lot_size: 0.001
+  stale_book_ms: 1000
+  funding_interval_hours: 8
+
+strategy:
+  decision_interval_ms: 300
+  order_size_eth: 0.01
+  quote_distance_ticks: 1
+  max_pressure_shift_ticks: 1
+  max_inventory_shift_ticks: 3
+  funding_target_per_bp_eth: 0.1
+  max_funding_target_eth: 0.25
+
+risk:
+  inventory_limit_eth: 2.0
+  final_inventory_eth: 0.0
+
+simulation:
+  placement_latency_ms: 0
+  cancellation_latency_ms: 0
+  maker_fee_bps: 0.0
+  taker_fee_bps: 0.0
+  queue_model: visible_volume_ahead
+  book_cross_policy: cancel
+
+reporting:
+  snapshot_interval_ms: 1000
+  output_directory: outputs/order_size_0_01
