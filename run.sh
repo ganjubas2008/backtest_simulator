@@ -76,34 +76,75 @@ find_python() {
   fi
 }
 
-setup_environment() {
-  local bootstrap
-  command -v python3 >/dev/null 2>&1 || die "Python 3.12 is required."
+bootstrap_python() {
+  local python base_python
+  python="$(command -v python3)"
+  base_python="$(
+    "$python" -c \
+      'import sys; print(getattr(sys, "_base_executable", sys.executable))'
+  )"
 
-  if [[ ! -x "$PROJECT_ROOT/.venv/bin/python" ||
-        ! -x "$PROJECT_ROOT/.venv/bin/pip" ]]; then
+  if [[ -x "$base_python" ]]; then
+    echo "$base_python"
+  else
+    echo "$python"
+  fi
+}
+
+venv_has_pip() {
+  [[ -x "$PROJECT_ROOT/.venv/bin/python" ]] &&
+    "$PROJECT_ROOT/.venv/bin/python" -m pip --version >/dev/null 2>&1
+}
+
+create_with_virtualenv() {
+  local python="$1"
+  local bootstrap="${TMPDIR:-/tmp}/hft-virtualenv.pyz"
+
+  echo "Using PyPA virtualenv."
+  if command -v curl >/dev/null 2>&1; then
+    curl --proto '=https' --tlsv1.2 -fL --retry 3 \
+      -o "$bootstrap" https://bootstrap.pypa.io/virtualenv.pyz
+  elif command -v wget >/dev/null 2>&1; then
+    wget --https-only -O "$bootstrap" \
+      https://bootstrap.pypa.io/virtualenv.pyz
+  else
+    die "Install python3-venv, curl, or wget, then retry."
+  fi
+
+  "$python" "$bootstrap" "$PROJECT_ROOT/.venv" ||
+    die "Could not create a Python environment with pip."
+}
+
+setup_environment() {
+  local python venv_python
+  command -v python3 >/dev/null 2>&1 || die "Python 3.12 is required."
+  python="$(bootstrap_python)"
+  venv_python="$PROJECT_ROOT/.venv/bin/python"
+
+  if [[ ! -x "$venv_python" ]]; then
     echo "Creating the local Python environment..."
-    if ! python3 -m venv "$PROJECT_ROOT/.venv"; then
+    if ! "$python" -m venv "$PROJECT_ROOT/.venv"; then
       echo
       echo "Standard venv support is unavailable; using PyPA virtualenv."
-      bootstrap="${TMPDIR:-/tmp}/hft-virtualenv.pyz"
-      if command -v curl >/dev/null 2>&1; then
-        curl --proto '=https' --tlsv1.2 -fL --retry 3 \
-          -o "$bootstrap" https://bootstrap.pypa.io/virtualenv.pyz
-      elif command -v wget >/dev/null 2>&1; then
-        wget --https-only -O "$bootstrap" \
-          https://bootstrap.pypa.io/virtualenv.pyz
-      else
-        die "Install python3-venv, curl, or wget, then retry."
-      fi
-      python3 "$bootstrap" "$PROJECT_ROOT/.venv"
+      create_with_virtualenv "$python"
     fi
   else
     echo "Using the existing local Python environment."
   fi
 
-  "$PROJECT_ROOT/.venv/bin/python" -m pip install -r "$PROJECT_ROOT/requirements.txt"
-  PYTHON="$PROJECT_ROOT/.venv/bin/python"
+  [[ -x "$venv_python" ]] || die "The local Python environment was not created."
+  if ! venv_has_pip; then
+    echo "pip is missing from the local environment; repairing it..."
+    if ! "$venv_python" -m ensurepip --upgrade || ! venv_has_pip; then
+      echo
+      echo "Standard pip bootstrapping is unavailable."
+      create_with_virtualenv "$python"
+    fi
+  fi
+  venv_has_pip || die "pip could not be installed in $PROJECT_ROOT/.venv."
+
+  "$venv_python" -m pip install -r "$PROJECT_ROOT/requirements.txt"
+  PYTHON="$venv_python"
   echo
   echo "Environment ready: $PROJECT_ROOT/.venv"
 }
